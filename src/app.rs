@@ -1,11 +1,18 @@
+mod settings;
+
+use settings::Settings;
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct App {
-    // Example stuff:
-    label: String,
+    /// App settings
+    settings: Settings,
+    /// Currently active template folder
+    template_folder: Option<String>,
 
     // this how you opt-out of serialization of a member
+    // TODO @dz remove after @TrueWarg sees this
     #[serde(skip)]
     value: f32,
 }
@@ -13,8 +20,8 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
+            settings: Settings::default(),
+            template_folder: None,
             value: 2.7,
         }
     }
@@ -25,14 +32,23 @@ impl App {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
+        let app: App;
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            app = eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        } else {
+            app = Default::default();
         }
 
-        Default::default()
+        cc.egui_ctx.set_visuals(if app.settings.use_light_mode {
+            egui::Visuals::light()
+        } else {
+            egui::Visuals::dark()
+        });
+
+        app
     }
 }
 
@@ -45,49 +61,23 @@ impl eframe::App for App {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { label, value } = self;
-
-        // Examples of how to create different panels and windows.
-        // Pick whichever suits you.
-        // Tip: a good default choice is to just keep the `CentralPanel`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
         #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    // TODO @dz @Settings remove this from menu and add Settings window instead
+                    if ui.button("Switch color theme").clicked() {
+                        self.settings.use_light_mode = !self.settings.use_light_mode;
+                        ctx.set_visuals(if self.settings.use_light_mode {
+                            egui::Visuals::light()
+                        } else {
+                            egui::Visuals::dark()
+                        });
+                        ui.close_menu()
+                    }
                     if ui.button("Quit").clicked() {
                         _frame.close();
                     }
-                });
-            });
-        });
-
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
-            });
-
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
-            }
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to(
-                        "eframe",
-                        "https://github.com/emilk/egui/tree/master/crates/eframe",
-                    );
-                    ui.label(".");
                 });
             });
         });
