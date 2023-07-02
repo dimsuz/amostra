@@ -1,5 +1,6 @@
 mod settings;
 
+use egui::{FontFamily, FontId, TextStyle};
 use settings::Settings;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -34,6 +35,9 @@ impl App {
         // `cc.egui_ctx.set_visuals` and `cc.egui_ctx.set_fonts`.
         let app: App;
 
+        setup_fonts(&cc.egui_ctx);
+        configure_text_styles(&cc.egui_ctx);
+
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
         if let Some(storage) = cc.storage {
@@ -50,6 +54,35 @@ impl App {
 
         app
     }
+}
+
+fn setup_fonts(ctx: &egui::Context) {
+    let mut fonts = egui::FontDefinitions::default();
+    fonts.font_data.insert(
+        "liberation".to_owned(),
+        egui::FontData::from_static(include_bytes!("../fonts/LiberationSans-Regular.ttf")),
+    );
+    fonts
+        .families
+        .entry(egui::FontFamily::Proportional)
+        .or_default()
+        .insert(0, "liberation".to_owned());
+    ctx.set_fonts(fonts);
+}
+
+fn configure_text_styles(ctx: &egui::Context) {
+    use FontFamily::{Monospace, Proportional};
+
+    let mut style = (*ctx.style()).clone();
+    style.text_styles = [
+        (TextStyle::Heading, FontId::new(25.0, Proportional)),
+        (TextStyle::Body, FontId::new(16.0, Proportional)),
+        (TextStyle::Monospace, FontId::new(16.0, Monospace)),
+        (TextStyle::Button, FontId::new(16.0, Proportional)),
+        (TextStyle::Small, FontId::new(12.0, Proportional)),
+    ]
+    .into();
+    ctx.set_style(style);
 }
 
 impl eframe::App for App {
