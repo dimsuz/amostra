@@ -1,3 +1,4 @@
+mod dir_explorer;
 mod settings;
 
 use egui::{FontFamily, FontId, TextStyle};
