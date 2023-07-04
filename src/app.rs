@@ -4,28 +4,13 @@ use egui::{FontFamily, FontId, TextStyle};
 use settings::Settings;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, std::default::Default)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct App {
     /// App settings
     settings: Settings,
     /// Currently active template folder
     template_folder: Option<String>,
-
-    // this how you opt-out of serialization of a member
-    // TODO @dz remove after @TrueWarg sees this
-    #[serde(skip)]
-    value: f32,
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            settings: Settings::default(),
-            template_folder: None,
-            value: 2.7,
-        }
-    }
 }
 
 impl App {
@@ -116,24 +101,31 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
+            match self.template_folder {
+                Some(_) => self.ui_main(ui),
+                None => self.ui_intro(ui),
+            };
             egui::warn_if_debug_build(ui);
         });
+    }
+}
 
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally choose either panels OR windows.");
+impl App {
+    fn ui_intro(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add_space(100.0);
+            ui.heading("Welcome!");
+            ui.add_space(30.0);
+            ui.allocate_ui(egui::vec2(350.0, 800.0), |ui| {
+                ui.label("You can open any directory and start working on it as a template or you can open a directory with an existing template");
             });
-        }
+            ui.add_space(30.0);
+            ui.style_mut().spacing.button_padding = egui::vec2(8.0, 8.0);
+            ui.button("Open directory")
+        });
+    }
+
+    fn ui_main(&mut self, ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| ui.label("TODO 4 panels"));
     }
 }
