@@ -1,8 +1,10 @@
 mod dir_explorer;
 mod settings;
 
-use egui::{FontFamily, FontId, TextStyle};
+use egui::{FontFamily, FontId, ScrollArea, TextStyle};
 use settings::Settings;
+
+use self::dir_explorer::demo;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize, std::default::Default)]
@@ -12,6 +14,9 @@ pub struct App {
     settings: Settings,
     /// Currently active template folder
     template_folder: Option<String>,
+
+    #[serde(skip)]
+    show_template_chooser: bool,
 }
 
 impl App {
@@ -37,6 +42,13 @@ impl App {
         } else {
             egui::Visuals::dark()
         });
+
+        // let mut style = (*cc.egui_ctx.style()).clone();
+        // style.debug.show_resize = true;
+        // style.debug.debug_on_hover = true;
+        // style.debug.show_expand_width = true;
+        // style.debug.show_expand_height = true;
+        // cc.egui_ctx.set_style(style);
 
         app
     }
@@ -122,11 +134,85 @@ impl App {
             });
             ui.add_space(30.0);
             ui.style_mut().spacing.button_padding = egui::vec2(8.0, 8.0);
-            ui.button("Open directory")
+            if ui.button("Open directory").clicked() {
+                // temporary for testing, open dir explorer in future
+                self.template_folder = Some("/tmp".to_string())
+            }
         });
     }
 
     fn ui_main(&mut self, ui: &mut egui::Ui) {
-        ui.vertical_centered(|ui| ui.label("TODO 4 panels"));
+        if self.show_template_chooser {
+            demo(ui.ctx())
+        }
+        ui.columns(2, |columns| {
+            self.ui_template_panel(&mut columns[0]);
+            self.ui_result_panel(&mut columns[1]);
+        });
+    }
+
+    fn ui_template_panel(&mut self, ui: &mut egui::Ui) {
+        ui.with_layout(
+            egui::Layout::right_to_left(egui::Align::Min).with_cross_justify(true),
+            |ui| {
+                ui.separator();
+                ui.vertical(|ui| {
+                    ui.heading("Template");
+                    ui.columns(2, |columns| {
+                        columns[0].with_layout(
+                            egui::Layout::bottom_up(egui::Align::Center),
+                            |ui| {
+                                ui.style_mut().spacing.button_padding = egui::vec2(8.0, 8.0);
+                                if ui.button("Change template").clicked() {
+                                    self.show_template_chooser = true
+                                }
+                                ScrollArea::vertical()
+                                    .id_source("template")
+                                    .auto_shrink([false; 2])
+                                    .show(ui, |ui| {
+                                        ui.vertical(|ui| {
+                                            for i in 0..200 {
+                                                ui.label(format!("File {}", i));
+                                            }
+                                        })
+                                    });
+                            },
+                        );
+                        columns[1]
+                            .horizontal_centered(|ui| ui.label("Select a template file to edit"))
+                    });
+                });
+            },
+        );
+    }
+
+    fn ui_result_panel(&mut self, ui: &mut egui::Ui) {
+        ui.with_layout(
+            egui::Layout::right_to_left(egui::Align::Min).with_cross_justify(true),
+            |ui| {
+                ui.vertical(|ui| {
+                    ui.heading("Result");
+                    ui.columns(2, |columns| {
+                        columns[0].with_layout(
+                            egui::Layout::bottom_up(egui::Align::Center),
+                            |ui| {
+                                ScrollArea::vertical()
+                                    .id_source("result")
+                                    .auto_shrink([false; 2])
+                                    .show(ui, |ui| {
+                                        ui.vertical(|ui| {
+                                            for i in 0..200 {
+                                                ui.label(format!("File {}", i));
+                                            }
+                                        })
+                                    });
+                            },
+                        );
+                        columns[1]
+                            .horizontal_centered(|ui| ui.label("Select a result file to view"))
+                    });
+                });
+            },
+        );
     }
 }
