@@ -1,22 +1,38 @@
 mod dir_explorer;
 mod settings;
 
-use egui::{FontFamily, FontId, ScrollArea, TextStyle};
+use egui::{vec2, FontFamily, FontId, Layout, ScrollArea, TextEdit, TextStyle};
 use settings::Settings;
 
 use self::dir_explorer::demo;
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize, std::default::Default)]
+#[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct App {
     /// App settings
     settings: Settings,
     /// Currently active template folder
     template_folder: Option<String>,
+    /// A text currently edited in the template area
+    template_editor_file_text: Option<String>,
+    /// File selected in the template file chooser
+    template_editor_selected_file: Option<String>,
 
     #[serde(skip)]
     show_template_chooser: bool,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        Self {
+            settings: Settings::default(),
+            template_folder: None,
+            template_editor_file_text: None,
+            template_editor_selected_file: Some("app.rs".to_owned()),
+            show_template_chooser: false,
+        }
+    }
 }
 
 impl App {
@@ -106,6 +122,10 @@ impl eframe::App for App {
                         });
                         ui.close_menu()
                     }
+                    if ui.button("Clear storage").clicked() {
+                        *self = App::default();
+                        ui.close_menu();
+                    }
                     if ui.button("Quit").clicked() {
                         _frame.close();
                     }
@@ -158,32 +178,71 @@ impl App {
                 ui.separator();
                 ui.vertical(|ui| {
                     ui.heading("Template");
-                    ui.columns(2, |columns| {
-                        columns[0].with_layout(
-                            egui::Layout::bottom_up(egui::Align::Center),
-                            |ui| {
-                                ui.style_mut().spacing.button_padding = egui::vec2(8.0, 8.0);
-                                if ui.button("Change template").clicked() {
-                                    self.show_template_chooser = true
-                                }
-                                ScrollArea::vertical()
-                                    .id_source("template")
-                                    .auto_shrink([false; 2])
-                                    .show(ui, |ui| {
-                                        ui.vertical(|ui| {
-                                            for i in 0..200 {
-                                                ui.label(format!("File {}", i));
-                                            }
-                                        })
-                                    });
-                            },
-                        );
-                        columns[1]
-                            .horizontal_centered(|ui| ui.label("Select a template file to edit"))
+                    ui.horizontal_top(|ui| {
+                        ui.allocate_ui(vec2(200.0, ui.available_height()), |ui| {
+                            self.ui_template_dir(ui);
+                        });
+                        //ui.horizontal_centered(|ui| ui.label("Select a template file to edit"))
+                        self.ui_template_file_editor(ui);
                     });
                 });
             },
         );
+    }
+
+    fn ui_template_dir(&mut self, ui: &mut egui::Ui) {
+        ui.with_layout(egui::Layout::bottom_up(egui::Align::Center), |ui| {
+            ui.style_mut().spacing.button_padding = egui::vec2(8.0, 8.0);
+            if ui.button("Change template").clicked() {
+                self.show_template_chooser = true
+            }
+            ui.style_mut().spacing.button_padding = egui::vec2(2.0, 2.0);
+            ScrollArea::vertical()
+                .id_source("template")
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    let stroke = ui.style().noninteractive().bg_stroke;
+                    egui::Frame::none()
+                        .fill(egui::Color32::WHITE)
+                        .stroke(stroke)
+                        .inner_margin(stroke.width + 2.0)
+                        .show(ui, |ui| {
+                            ui.with_layout(Layout::top_down_justified(egui::Align::Min), |ui| {
+                                // TODO @dz use selected_label and remove "selected", derive directly from state
+                                let mut selected = self
+                                    .template_editor_selected_file
+                                    .as_ref()
+                                    .map(|x| x == "app.rs")
+                                    .unwrap_or_default();
+                                if ui.toggle_value(&mut selected, "app.rs").clicked() {
+                                    self.template_editor_selected_file = Some("app.rs".to_owned());
+                                    self.template_editor_file_text =
+                                        Some("Contents of app.rs".to_owned())
+                                }
+                                selected = self
+                                    .template_editor_selected_file
+                                    .as_ref()
+                                    .map(|x| x == "dir_explorer.rs")
+                                    .unwrap_or_default();
+                                if ui.toggle_value(&mut selected, "dir_explorer.rs").clicked() {
+                                    self.template_editor_selected_file =
+                                        Some("dir_explorer.rs".to_owned());
+                                    self.template_editor_file_text =
+                                        Some("Contents of dir_explorer.rs".to_owned())
+                                }
+                            });
+                        });
+                });
+        });
+    }
+
+    fn ui_template_file_editor(&mut self, ui: &mut egui::Ui) {
+        if let Some(text) = self.template_editor_file_text.as_mut() {
+            TextEdit::multiline(text)
+                .desired_width(f32::INFINITY)
+                .code_editor()
+                .show(ui);
+        }
     }
 
     fn ui_result_panel(&mut self, ui: &mut egui::Ui) {
