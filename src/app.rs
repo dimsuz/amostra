@@ -1,10 +1,14 @@
 mod dir_explorer;
 mod settings;
+mod template_set;
 
-use egui::{vec2, FontFamily, FontId, Layout, ScrollArea, TextEdit, TextStyle};
+use egui::{vec2, FontFamily, FontId, Layout, ScrollArea, TextEdit, TextStyle, Window, Align2, style};
 use settings::Settings;
+use template_set::TemplateSet;
 
 use self::dir_explorer::demo;
+
+static EXAMPLE_TEMPLATE_PATH: &'static str = "./assets/example/templates/screen";
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -12,12 +16,15 @@ use self::dir_explorer::demo;
 pub struct App {
     /// App settings
     settings: Settings,
-    /// Currently active template folder
-    template_folder: Option<String>,
+    /// Currently active template set
+    template_set: Option<TemplateSet>,
     /// A text currently edited in the template area
     template_editor_file_text: Option<String>,
     /// File selected in the template file chooser
     template_editor_selected_file: Option<String>,
+    /// Shows a modal dialog with critical error if not None
+    #[serde(skip)]
+    critical_error: Option<String>,
 
     #[serde(skip)]
     show_template_chooser: bool,
@@ -27,10 +34,11 @@ impl Default for App {
     fn default() -> Self {
         Self {
             settings: Settings::default(),
-            template_folder: None,
+            template_set: None,
             template_editor_file_text: None,
             template_editor_selected_file: Some("app.rs".to_owned()),
             show_template_chooser: false,
+            critical_error: None
         }
     }
 }
@@ -134,16 +142,18 @@ impl eframe::App for App {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            match self.template_folder {
+            match self.template_set {
                 Some(_) => self.ui_main(ui),
                 None => self.ui_intro(ui),
             };
+            self.ui_maybe_critical_error(ui);
             egui::warn_if_debug_build(ui);
         });
     }
 }
 
 impl App {
+
     fn ui_intro(&mut self, ui: &mut egui::Ui) {
         ui.vertical_centered(|ui| {
             ui.add_space(100.0);
@@ -156,7 +166,10 @@ impl App {
             ui.style_mut().spacing.button_padding = egui::vec2(8.0, 8.0);
             if ui.button("Open directory").clicked() {
                 // temporary for testing, open dir explorer in future
-                self.template_folder = Some("/tmp".to_string())
+                match TemplateSet::load(EXAMPLE_TEMPLATE_PATH) {
+                    Ok(set) => self.template_set = Some(set),
+                    Err(e) => self.critical_error = Some(e)
+                }
             }
         });
     }
@@ -169,6 +182,28 @@ impl App {
             self.ui_template_panel(&mut columns[0]);
             self.ui_result_panel(&mut columns[1]);
         });
+    }
+
+    fn ui_maybe_critical_error(&mut self, ui: &mut egui::Ui) {
+        if let Some(e) = self.critical_error.to_owned() {
+            // TODO @dz @Errors use popup api as described here?
+            // https://github.com/emilk/egui/discussions/758
+            Window::new("Error")
+                .collapsible(false)
+                .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
+                .show(ui.ctx(), |ui| {
+                    ui.vertical(|ui| {
+                        ui.label(e);
+                        ui.vertical_centered(|ui| {
+                            ui.style_mut().spacing.button_padding = egui::vec2(30.0, 6.0);
+                            ui.add_space(ui.style().spacing.item_spacing.y);
+                            if ui.button("OK").clicked() {
+                                self.critical_error = None
+                            }
+                        })
+                    })
+                });
+        }
     }
 
     fn ui_template_panel(&mut self, ui: &mut egui::Ui) {
