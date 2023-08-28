@@ -22,7 +22,7 @@ pub struct App {
     template_editor_file_text: Option<String>,
     /// File selected in the template file chooser
     template_editor_selected_file: Option<String>,
-    /// Current active templates folder content
+    /// Current active templates folder
     templates_explored: Arc<Mutex<DirExplorer>>,
 
     #[serde(skip)]
