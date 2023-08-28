@@ -3,8 +3,12 @@ mod settings;
 
 use egui::{vec2, FontFamily, FontId, Layout, ScrollArea, TextEdit, TextStyle};
 use settings::Settings;
-
-use self::dir_explorer::demo;
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+};
+use self::dir_explorer::{demo, DirExplorer};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -18,6 +22,8 @@ pub struct App {
     template_editor_file_text: Option<String>,
     /// File selected in the template file chooser
     template_editor_selected_file: Option<String>,
+    /// Current active templates folder content
+    templates_explored: Arc<Mutex<DirExplorer>>,
 
     #[serde(skip)]
     show_template_chooser: bool,
